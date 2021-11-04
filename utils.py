@@ -17,11 +17,11 @@ def random_policy(env_name):
     env.close()
 
 
-def train_DQN(env_name, hidden_dim=[128]):
+def train_DQN(env_name, lr, gamma, hidden_dim=None, net_type='DQN'):
+    if hidden_dim is None:
+        hidden_dim = [128]
     env = gym.make(env_name)
-    lr = 2e-3
     num_episodes = 500
-    gamma = 0.98
     epsilon = 0.01
     target_update = 10
     buffer_size = 10000
@@ -36,7 +36,7 @@ def train_DQN(env_name, hidden_dim=[128]):
     replay_buffer = ReplayBuffer(buffer_size)
     state_dim = env.observation_space.shape[0]
     action_dim = env.action_space.n
-    agent = DQN(state_dim, hidden_dim, action_dim, device, lr, gamma, epsilon, target_update)
+    agent = DQN(state_dim, hidden_dim, action_dim, device, lr, gamma, epsilon, target_update, net_type=net_type)
     best_return = -np.inf
     return_list = []
     for i in range(10):
@@ -68,12 +68,10 @@ def train_DQN(env_name, hidden_dim=[128]):
     return agent
 
 
-def train_DQN_Conv(env_name):
+def train_DQN_Conv(env_name, lr, gamma):
     env = gym.make(env_name)
-    state_channels = 3
-    lr = 2e-3
+    state_channels = 10
     num_episodes = 500
-    gamma = 0.98
     epsilon = 0.01
     target_update = 10
     buffer_size = 10000

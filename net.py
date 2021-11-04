@@ -27,6 +27,7 @@ class ReplayBuffer:
     def pop(self):
         self.buffer.pop()
 
+
 class Qnet(torch.nn.Module):
     def __init__(self, state_dim, hidden_dim, action_dim):
         super(Qnet, self).__init__()
@@ -41,15 +42,40 @@ class Qnet(torch.nn.Module):
         return self.layers(x)
 
 
+class VAnet(nn.Module):
+    def __init__(self, state_dim, hidden_dim, action_dim):
+        super().__init__()
+        layers = [torch.nn.Linear(state_dim, hidden_dim[0]), torch.nn.ReLU()]
+        for i in range(len(hidden_dim) - 1):
+            layers.append(torch.nn.Linear(hidden_dim[i], hidden_dim[i + 1]))
+            layers.append(torch.nn.LeakyReLU())
+        self.layers = torch.nn.Sequential(*layers)
+        self.fc_A = nn.Linear(hidden_dim[-1], action_dim)
+        self.fc_V = nn.Linear(hidden_dim[-1], 1)
+
+    def forward(self, x):
+        feature = self.layers(x)
+        A = self.fc_A(feature)
+        V = self.fc_V(feature)
+        Q = V + A - A.mean(1).view(-1, 1)
+        return Q
+
+
 class DQN:
     def __init__(self, state_dim, hidden_dim, action_dim, device, learning_rate=2e-3, gamma=0.98,
-                 epsilon=0.01, target_update=10):
+                 epsilon=0.01, target_update=10, net_type='DQN'):
         self.state_dim = state_dim
         self.action_dim = action_dim
         self.hidden_dim = hidden_dim
         self.device = device
-        self.q_net = Qnet(state_dim, self.hidden_dim, self.action_dim).to(device)  # Q网络
-        self.target_q_net = Qnet(state_dim, self.hidden_dim, self.action_dim).to(device)  # 目标网络
+        if net_type == 'dueling_DQN':
+            self.q_net = VAnet(state_dim, self.hidden_dim, self.action_dim).to(device)  # Q网络
+            self.target_q_net = VAnet(state_dim, self.hidden_dim, self.action_dim).to(device)
+        elif net_type == 'DQN':
+            self.q_net = Qnet(state_dim, self.hidden_dim, self.action_dim).to(device)  # Q网络
+            self.target_q_net = Qnet(state_dim, self.hidden_dim, self.action_dim).to(device)  # 目标网络
+        else:
+            raise TypeError("not a valid net type")
         self.optimizer = torch.optim.Adam(self.q_net.parameters(), lr=learning_rate)  # 使用Adam优化器
         self.gamma = gamma  # 折扣因子
         self.epsilon = epsilon  # epsilon-greedy
@@ -108,13 +134,15 @@ class ConvBlock(torch.nn.Module):
 
 
 class ConvQnet(torch.nn.Module):
-    def __init__(self, in_channels, action_dim):
+    def __init__(self, in_channels, action_dim, net_type):
         super().__init__()
+        self.net_type = net_type
         self.conv1 = ConvBlock(in_channels, 32, (3, 2), (3, 2))
         self.conv2 = ConvBlock(32, 64, (5, 5), (5, 5))
         self.conv3 = ConvBlock(64, 64, (2, 2), (2, 2))
         self.fc = torch.nn.Linear(7 * 8 * 64, 512)
-        self.head = torch.nn.Linear(512, action_dim)
+        self.fc_A = torch.nn.Linear(512, action_dim)
+        self.fc_V = nn.Linear(512, 1)
 
     def forward(self, x):
         x = x.float() / 255
@@ -122,16 +150,25 @@ class ConvQnet(torch.nn.Module):
         x = self.conv2(x)
         x = self.conv3(x)
         x = F.relu(self.fc(x.view(x.size()[0], -1)))
-        return self.head(x)
+        if self.net_type == 'DQN':
+            return self.fc_A(x)
+        elif self.net_type == 'dueling_DQN':
+            A = self.fc_A(x)
+            V = self.fc_V(x)
+            Q = V + A - A.mean(1).view(-1, 1)
+            return Q
+        else:
+            raise TypeError("not a valid net")
 
 
 class ConvDQN:
-    def __init__(self, state_dim, action_dim, device, learning_rate=2e-3, gamma=0.98, epsilon=0.01, target_update=10):
+    def __init__(self, state_dim, action_dim, device, learning_rate=2e-3, gamma=0.98,
+                 epsilon=0.01, target_update=10, net_type='DQN'):
         self.state_dim = state_dim
         self.action_dim = action_dim
         self.device = device
-        self.q_net = ConvQnet(state_dim[0], self.action_dim).to(device)  # Q网络
-        self.target_q_net = ConvQnet(state_dim[0], self.action_dim).to(device)  # 目标网络
+        self.q_net = ConvQnet(state_dim[0], self.action_dim, net_type).to(device)  # Q网络
+        self.target_q_net = ConvQnet(state_dim[0], self.action_dim, net_type).to(device)  # 目标网络
         self.optimizer = torch.optim.Adam(self.q_net.parameters(), lr=learning_rate)  # 使用Adam优化器
         self.gamma = gamma  # 折扣因子
         self.epsilon = epsilon  # epsilon-greedy
