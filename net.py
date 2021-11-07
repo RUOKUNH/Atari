@@ -8,6 +8,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 import os
 
+torch.set_default_dtype(torch.float)
+
 
 class ReplayBuffer:
     def __init__(self, capacity):
@@ -84,7 +86,7 @@ class DQN:
 
     def take_action(self, state):  # epsilon greedy策略采取动作
         if np.random.random() < self.epsilon:
-            action = np.random.randint(self.action_dim)
+            action = np.random.randint(self.action_dim).astype(float)
         else:
             state = torch.tensor([state], dtype=torch.float).to(self.device)
             action = self.q_net(state).argmax().item()

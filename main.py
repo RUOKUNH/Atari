@@ -64,8 +64,9 @@ def test(env_name, net_type, input_type):
         test_image(env_name, net_type)
 
 
+
 def main(args):
-    env_name = 'Breakout-v0'
+    env_name = args.env_name
     os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
     if args.mode == 'train':
         train(env_name, net_type=args.net_type, input_type=args.input_type, lr=args.lr, gamma=args.gamma)
@@ -74,23 +75,28 @@ def main(args):
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--mode',
-                        help='train or test',
-                        type=str)
-    parser.add_argument('--net_type',
-                        default='DQN',
-                        help='net_type',
-                        type=str)
-    parser.add_argument('--input_type',
-                        default='ram',
-                        help='input type',
-                        type=str)
-    parser.add_argument('--lr',
-                        default=1e-3,
-                        type=float)
-    parser.add_argument('--gamma',
-                        default=0.98,
-                        type=float)
-    args = parser.parse_args()
-    main(args)
+    # parser = argparse.ArgumentParser()
+    # parser.add_argument('--mode',
+    #                     help='train or test',
+    #                     default='train',
+    #                     type=str)
+    # parser.add_argument('--net_type',
+    #                     default='DQN',
+    #                     help='net_type',
+    #                     type=str)
+    # parser.add_argument('--input_type',
+    #                     default='ram',
+    #                     help='input type',
+    #                     type=str)
+    # parser.add_argument('--lr',
+    #                     default=1e-3,
+    #                     type=float)
+    # parser.add_argument('--gamma',
+    #                     default=0.98,
+    #                     type=float)
+    # parser.add_argument('--env_name',
+    #                     default='Pendulum-v0',
+    #                     type=str)
+    # args = parser.parse_args()
+    # main(args)
+    test_ac("MountainCarContinuous-v0")
